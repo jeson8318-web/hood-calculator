@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>후드 필요환기량 계산기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E8EBEE; --panel:#F7F8F9; --ink:#1D2B36; --muted:#5B6873;
+  --duct:#2F5D7C; --air:#1F8A7E; --line:#C9D0D6; --warn:#B7791F;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#151C22; --panel:#1E272F; --ink:#E4E9ED; --muted:#9AA6B0;
+    --duct:#7FAED0; --air:#5FCFC1; --line:#33414C; --warn:#E3B35A;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#151C22; --panel:#1E272F; --ink:#E4E9ED; --muted:#9AA6B0;
+  --duct:#7FAED0; --air:#5FCFC1; --line:#33414C; --warn:#E3B35A;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;line-height:1.6}
+main{max-width:640px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.5rem;margin:8px 0 4px;letter-spacing:-.01em}
+h2{font-size:1.05rem;margin:24px 0 8px}
+.sub{color:var(--muted);margin:0 0 20px;font-size:.95rem}
+.types{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.types button{font:inherit;background:var(--panel);color:var(--ink);border:1.5px solid var(--line);
+  border-radius:10px;padding:8px 4px 6px;cursor:pointer;font-size:.82rem;line-height:1.3}
+.types button svg{display:block;margin:0 auto 4px;width:56px;height:40px}
+.types button[aria-pressed="true"]{border-color:var(--duct);box-shadow:inset 0 0 0 1.5px var(--duct)}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid var(--air);outline-offset:2px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+.formula{font-size:1.05rem;font-weight:600;color:var(--duct);margin:0 0 4px}
+.note{color:var(--muted);font-size:.85rem;margin:0 0 6px}
+label{display:block;font-size:.9rem;margin:12px 0 4px}
+label small{color:var(--muted)}
+input,select{width:100%;font:inherit;font-size:1.05rem;padding:10px 12px;border-radius:8px;
+  border:1.5px solid var(--line);background:var(--bg);color:var(--ink)}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.helper{margin-top:6px;border:1px dashed var(--line);border-radius:8px;padding:6px 10px;font-size:.85rem}
+.helper summary{cursor:pointer;color:var(--duct)}
+.helper label{margin-top:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chips button{font:inherit;font-size:.8rem;padding:4px 10px;border-radius:999px;border:1px solid var(--line);
+  background:var(--bg);color:var(--ink);cursor:pointer}
+.seg button[aria-pressed="true"]{border-color:var(--duct);background:var(--duct);color:var(--panel)}
+.seg button{font-size:.9rem;padding:6px 16px}
+.chips .grp{width:100%;font-size:.78rem;color:var(--muted);margin-top:4px}
+.result{margin-top:18px;padding-top:14px;border-top:1px dashed var(--line)}
+.q{font-size:2.2rem;font-weight:700;color:var(--air);line-height:1.1}
+.q span{font-size:1rem;font-weight:600;color:var(--muted);margin-left:4px}
+.alt{color:var(--muted);font-size:.9rem}
+.steps{font-size:.85rem;color:var(--muted);margin-top:8px;overflow-x:auto;white-space:nowrap}
+.cmp{margin-top:10px;font-size:.88rem;background:var(--bg);border-radius:8px;padding:8px 10px}
+.err{color:var(--warn);font-size:.9rem}
+.actions{display:flex;gap:8px;margin-top:14px}
+.actions button{flex:1;font:inherit;font-weight:600;padding:10px;border-radius:8px;cursor:pointer;
+  border:1.5px solid var(--duct);background:var(--duct);color:var(--panel)}
+.actions button.ghost{background:transparent;color:var(--duct)}
+.hist{list-style:none;padding:0;margin:0}
+.hist li{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:.88rem}
+.hist b{color:var(--air)}
+.hist .meta{color:var(--muted);font-size:.8rem}
+.hist .memo{display:block}
+.empty{color:var(--muted);font-size:.9rem}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+  background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:999px;font-size:.88rem;opacity:0;transition:opacity .2s}
+.toast.show{opacity:1}
+footer{color:var(--muted);font-size:.8rem;margin-top:18px}
+@media (max-width:380px){.types{grid-template-columns:repeat(2,1fr)}}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<main>
+  <h1>후드 필요환기량 계산기</h1>
+  <p class="sub">후드 모양을 고르고 값을 넣으면 필요환기량 Q가 바로 계산됩니다.</p>
+
+  <div class="types" id="types" role="group" aria-label="후드 종류"></div>
+
+  <section class="card">
+    <p class="formula" id="formula"></p>
+    <p class="note" id="note"></p>
+    <div id="fields"></div>
+    <div class="result" aria-live="polite">
+      <div class="q" id="q">–<span>m³/min</span></div>
+      <div class="alt" id="alt"></div>
+      <div class="steps" id="steps"></div>
+      <div class="cmp" id="cmp" hidden></div>
+    </div>
+    <label for="memo">메모 <small>(선택, 예: ○○사업장 도장부스)</small></label>
+    <input id="memo" type="text" maxlength="60">
+    <div class="actions">
+      <button type="button" id="save">기록에 저장</button>
+      <button type="button" class="ghost" id="copy">결과 복사</button>
+    </div>
+  </section>
+
+  <h2>계산 기록</h2>
+  <ul class="hist" id="hist"></ul>
+  <button type="button" id="clear" class="chips" style="border:0;background:none;color:var(--muted);font:inherit;font-size:.85rem;cursor:pointer;padding:0" hidden>기록 모두 지우기</button>
+
+  <footer>Vc: 제어속도(m/s). 개구면 치수와 슬롯 길이는 cm로 입력합니다. 결과는 소수점 첫째자리까지, m³/min 기준(×60)과 m³/s를 함께 표시합니다. 계수는 일반 산업환기 교재 기준이니 사용 교재와 대조해 확인하세요. 기록은 이 기기의 브라우저에만 저장됩니다.</footer>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const F = {
+  Vc:{label:"제어속도 Vc", unit:"m/s"},
+  X:{label:"제어거리 X (후드~오염원)", unit:"m"},
+  L:{label:"슬롯 길이 L", unit:"cm"},
+  P:{label:"오염원 둘레 P", unit:"m"},
+  Hc:{label:"후드 높이 H (오염원~후드)", unit:"m"}
+};
+const icon = {
+  booth:'<svg viewBox="0 0 56 40"><path d="M8 36V10h40v26" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M22 10V2h12v8" fill="none" stroke="currentColor" stroke-width="2.5"/><circle cx="28" cy="30" r="3" fill="var(--air)"/></svg>',
+  plain:'<svg viewBox="0 0 56 40"><rect x="22" y="2" width="12" height="20" fill="none" stroke="currentColor" stroke-width="2.5"/><circle cx="28" cy="34" r="3" fill="var(--air)"/></svg>',
+  flange:'<svg viewBox="0 0 56 40"><rect x="22" y="2" width="12" height="20" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M10 22h36" stroke="currentColor" stroke-width="2.5"/><circle cx="28" cy="34" r="3" fill="var(--air)"/></svg>',
+  slot:'<svg viewBox="0 0 56 40"><rect x="6" y="16" width="44" height="6" fill="none" stroke="currentColor" stroke-width="2.5"/><circle cx="28" cy="34" r="3" fill="var(--air)"/></svg>',
+  fslot:'<svg viewBox="0 0 56 40"><rect x="6" y="16" width="44" height="6" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M6 25h44" stroke="currentColor" stroke-width="2.5"/><circle cx="28" cy="34" r="3" fill="var(--air)"/></svg>',
+  canopy:'<svg viewBox="0 0 56 40"><path d="M6 20L20 6h16l14 14" fill="none" stroke="currentColor" stroke-width="2.5"/><rect x="16" y="30" width="24" height="6" fill="var(--air)"/></svg>'
+};
+const r4 = n=>+n.toFixed(4);
+const T = [
+  {id:"booth", name:"포위식(부스)", f:"Q = 60 × Vc × A", note:"오염원을 감싸는 형태. A = 가로×세로 또는 πD²/4.", open:true, in:["Vc"],
+   calc:v=>({q:60*v.Vc*v.A, s:`60 × ${v.Vc} × ${r4(v.A)}`})},
+  {id:"plain", name:"외부식 일반", f:"Q = 60 × Vc × (10X² + A)", note:"자유공간, 플랜지 없음.", open:true, in:["Vc","X"], pair:"flange",
+   calc:v=>({q:60*v.Vc*(10*v.X**2+v.A), s:`60 × ${v.Vc} × (10×${v.X}² + ${r4(v.A)})`})},
+  {id:"flange", name:"외부식 플랜지", f:"Q = 60 × 0.75 × Vc × (10X² + A)", note:"플랜지 부착 시 일반형보다 약 25% 절감.", open:true, in:["Vc","X"], pair:"plain",
+   calc:v=>({q:60*0.75*v.Vc*(10*v.X**2+v.A), s:`60 × 0.75 × ${v.Vc} × (10×${v.X}² + ${r4(v.A)})`})},
+  {id:"slot", name:"외부식 슬롯", f:"Q = 60 × 3.7 × L × Vc × X", note:"자유공간 슬롯, 형상계수 C = 3.7. L은 cm로 입력하면 m로 바꿔 계산합니다.", in:["Vc","L","X"], pair:"fslot",
+   calc:v=>({q:60*3.7*(v.L/100)*v.Vc*v.X, s:`60 × 3.7 × ${r4(v.L/100)} × ${v.Vc} × ${v.X}`})},
+  {id:"fslot", name:"플랜지 슬롯", f:"Q = 60 × 2.6 × L × Vc × X", note:"플랜지 부착 슬롯, 형상계수 C = 2.6. L은 cm로 입력하면 m로 바꿔 계산합니다.", in:["Vc","L","X"], pair:"slot",
+   calc:v=>({q:60*2.6*(v.L/100)*v.Vc*v.X, s:`60 × 2.6 × ${r4(v.L/100)} × ${v.Vc} × ${v.X}`})},
+  {id:"canopy", name:"캐노피", f:"Q = 60 × 1.4 × P × H × Vc", note:"오염원 위에 매다는 형태. P = 오염원 둘레.", in:["Vc","P","Hc"],
+   calc:v=>({q:60*1.4*v.P*v.Hc*v.Vc, s:`60 × 1.4 × ${v.P} × ${v.Hc} × ${v.Vc}`})}
+];
+const VC_LAW = [
+  ["가스상 · 포위식",0.4],["가스상 · 외부식 측방/하방",0.5],["가스상 · 외부식 상방",1.0],
+  ["입자상 · 포위식",0.7],["입자상 · 외부식 측방/하방",1.0],["입자상 · 외부식 상방",1.2]
+];
+const VC_ACGIH = [
+  ["조용한 공기, 거의 속도 없이 발생",0.5],["약간 움직이는 공기, 저속 비산",1.0],
+  ["빠른 기류, 활발한 비산",2.5],["매우 빠른 기류, 고속 비산",10]
+];
+let cur = T[0]; const vals = {shape:"rect"}; let last = null;
+const $ = id=>document.getElementById(id);
+const fmt = (n,d=1)=>n.toLocaleString("ko-KR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const num = k=>{const s=vals[k]; if(s===undefined||s==="") return NaN; const n=parseFloat(s); return n>=0?n:NaN;};
+
+T.forEach(t=>{
+  const b=document.createElement("button");
+  b.type="button"; b.innerHTML=icon[t.id]+t.name; b.setAttribute("aria-pressed",t===cur);
+  b.onclick=()=>{cur=t;document.querySelectorAll(".types button").forEach(x=>x.setAttribute("aria-pressed",x===b));render();};
+  $("types").appendChild(b);
+});
+
+function inp(k,label,unit){
+  return `<label for="f_${k}">${label} <small>(${unit})</small></label>
+    <input id="f_${k}" data-k="${k}" type="number" inputmode="decimal" step="any" min="0" value="${vals[k]??""}">`;
+}
+function openingBlock(){
+  const c=vals.shape==="circ";
+  return `<label>개구면 모양</label>
+    <div class="chips seg" role="group" aria-label="개구면 모양">
+      <button type="button" data-shape="rect" aria-pressed="${!c}">사각형</button>
+      <button type="button" data-shape="circ" aria-pressed="${c}">원형</button>
+    </div>
+    ${c ? inp("od","개구면 지름 D","cm")
+        : `<div class="row"><div>${inp("ow","개구면 가로 W","cm")}</div><div>${inp("oh","개구면 높이 H","cm")}</div></div>`}
+    <p class="note" id="areaNote" style="margin-top:6px"></p>`;
+}
+function field(k){
+  let h=inp(k,F[k].label,F[k].unit);
+  if(k==="Vc"){
+    h+=`<details class="helper"><summary>제어속도 기준값에서 고르기</summary><div class="chips">
+      <span class="grp">안전보건규칙 별표 13 (관리대상 유해물질)</span>
+      ${VC_LAW.map(([n,v])=>`<button type="button" data-vc="${v}">${n} ${v}</button>`).join("")}
+      <span class="grp">ACGIH 범위의 상한값 (발생 조건별)</span>
+      ${VC_ACGIH.map(([n,v])=>`<button type="button" data-vc="${v}">${n} ~${v}</button>`).join("")}
+    </div></details>`;
+  }
+  if(k==="P"){
+    h+=`<details class="helper"><summary>오염원 가로·세로로 둘레 계산하기</summary>
+      <div class="row"><div><label for="p_l">가로 (m)</label><input id="p_l" type="number" inputmode="decimal" step="any" min="0"></div>
+        <div><label for="p_w">세로 (m)</label><input id="p_w" type="number" inputmode="decimal" step="any" min="0"></div></div>
+    </details>`;
+  }
+  return h;
+}
+function setVal(k,v){vals[k]=String(v); const el=$("f_"+k); if(el) el.value=vals[k]; compute();}
+
+function render(){
+  $("formula").textContent=cur.f; $("note").textContent=cur.note;
+  $("fields").innerHTML=cur.in.map(field).join("")+(cur.open?openingBlock():"");
+  $("fields").querySelectorAll("input[data-k]").forEach(el=>el.addEventListener("input",e=>{vals[el.dataset.k]=e.target.value;compute();}));
+  $("fields").querySelectorAll("[data-vc]").forEach(b=>b.onclick=()=>setVal("Vc",b.dataset.vc));
+  $("fields").querySelectorAll("[data-shape]").forEach(b=>b.onclick=()=>{vals.shape=b.dataset.shape;render();});
+  if($("p_l")){
+    const upd=()=>{const l=parseFloat($("p_l").value),w=parseFloat($("p_w").value); if(l>=0&&w>=0) setVal("P",r4(2*(l+w)));};
+    ["p_l","p_w"].forEach(id=>$(id).addEventListener("input",upd));
+  }
+  compute();
+}
+function opening(){
+  if(vals.shape==="circ"){const d=num("od"); return isNaN(d)?null:{A:Math.PI*(d/100)**2/4, txt:`원형 D=${d}cm`};}
+  const w=num("ow"),h=num("oh"); return (isNaN(w)||isNaN(h))?null:{A:(w/100)*(h/100), txt:`사각 ${w}×${h}cm`};
+}
+function compute(){
+  const v={}; let ok=true, desc=[];
+  cur.in.forEach(k=>{v[k]=num(k); if(isNaN(v[k])) ok=false; else desc.push(`${k==="Hc"?"H":k}=${v[k]}${F[k].unit==="cm"?"cm":""}`);});
+  if(cur.open){
+    const o=opening();
+    if($("areaNote")) $("areaNote").textContent=o?`개구면 면적 A = ${r4(o.A)} m²`:"";
+    if(!o) ok=false; else {v.A=o.A; desc.push(o.txt);}
+  }
+  $("cmp").hidden=true;
+  if(!ok){last=null;$("q").innerHTML='–<span>m³/min</span>';$("alt").textContent="";
+    $("steps").innerHTML='<span class="err">모든 값을 0 이상 숫자로 입력하세요.</span>';return;}
+  const r=cur.calc(v);
+  last={type:cur.name,f:cur.f,q:r.q,s:r.s,desc:desc.join(", ")};
+  $("q").innerHTML=fmt(r.q)+'<span>m³/min</span>';
+  $("alt").textContent="= "+fmt(r.q/60)+" m³/s";
+  $("steps").textContent=r.s+" = "+fmt(r.q);
+  if(cur.pair){
+    const p=T.find(t=>t.id===cur.pair), pq=p.calc(v).q, diff=pq?(r.q-pq)/pq*100:0;
+    $("cmp").hidden=false;
+    $("cmp").textContent=`같은 조건에서 ${p.name}: ${fmt(pq)} m³/min (현재가 ${diff>0?"+":""}${fmt(diff)}%)`;
+  }
+}
+
+/* 기록 */
+const KEY="hood-history-v1";
+function loadH(){try{return JSON.parse(localStorage.getItem(KEY))||[];}catch(e){return [];}}
+function saveH(h){try{localStorage.setItem(KEY,JSON.stringify(h));return true;}catch(e){return false;}}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function drawH(){
+  const h=loadH();
+  $("clear").hidden=!h.length;
+  $("hist").innerHTML=h.length?h.map(r=>`<li>${r.memo?`<span class="memo">${esc(r.memo)}</span>`:""}
+    ${esc(r.type)} · <b>${fmt(r.q)} m³/min</b><div class="meta">${esc(r.desc||"")} · ${r.t}</div></li>`).join("")
+    :'<li class="empty" style="border:0;background:none;padding:0">저장한 계산이 없습니다. 계산 후 “기록에 저장”을 누르세요.</li>';
+}
+function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1600);}
+$("save").onclick=()=>{
+  if(!last){toast("먼저 값을 모두 입력하세요");return;}
+  const d=new Date(), t=`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  const h=loadH(); h.unshift({...last,memo:$("memo").value.trim(),t});
+  toast(saveH(h.slice(0,50))?"기록에 저장했습니다":"이 브라우저에서는 저장할 수 없습니다");
+  drawH();
+};
+$("copy").onclick=async()=>{
+  if(!last){toast("먼저 값을 모두 입력하세요");return;}
+  const memo=$("memo").value.trim();
+  const txt=`${memo?memo+"\n":""}[${last.type}] ${last.f}\n${last.desc}\n${last.s} = ${fmt(last.q)} m³/min (${fmt(last.q/60)} m³/s)`;
+  try{await navigator.clipboard.writeText(txt);toast("결과를 복사했습니다");}catch(e){toast("복사할 수 없습니다. 길게 눌러 직접 복사하세요");}
+};
+$("clear").onclick=()=>{if(confirm("저장한 기록을 모두 지울까요?")){saveH([]);drawH();}};
+
+render(); drawH();
+</script>
+</body>
+</html>
